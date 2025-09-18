@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Chat</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <h2>AI Chat with Gemini</h2>
+  <button id="new-chat">New Chat</button>
+
+  <div id="chat-container">
+    <div id="messages"></div>
+    <div id="input-container">
+      <input type="text" id="query" placeholder="Type your message...">
+      <button id="send-btn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    let history = JSON.parse(localStorage.getItem("chatHistory")) || [];
+    const messagesDiv = document.getElementById("messages");
+    const queryInput = document.getElementById("query");
+    const sendBtn = document.getElementById("send-btn");
+    const newChatBtn = document.getElementById("new-chat");
+
+    function renderMessages() {
+      messagesDiv.innerHTML = "";
+      history.forEach(msg => {
+        const div = document.createElement("div");
+        div.className = "message " + (msg.role === "user" ? "user" : "ai");
+        div.textContent = msg.text;
+        messagesDiv.appendChild(div);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function saveHistory() {
+      localStorage.setItem("chatHistory", JSON.stringify(history));
+    }
+
+    async function sendMessage() {
+      const query = queryInput.value.trim();
+      if (!query) return;
+
+      history.push({ role: "user", text: query });
+      renderMessages();
+      saveHistory();
+      queryInput.value = "";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, history })
+        });
+
+        const data = await res.json();
+        history.push({ role: "model", text: data.reply });
+        renderMessages();
+        saveHistory();
+      } catch (err) {
+        history.push({ role: "model", text: "⚠️ Server error" });
+        renderMessages();
+        saveHistory();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    queryInput.addEventListener("keypress", e => {
+      if (e.key === "Enter") sendMessage();
+    });
+
+    newChatBtn.addEventListener("click", () => {
+      history = [];
+      saveHistory();
+      renderMessages();
+    });
+
+    renderMessages();
+  </script>
+</body>
+</html>
